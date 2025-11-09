@@ -48,21 +48,10 @@ key_numbers: Specific financial figures, percentages, guidance, or hard numbers.
 strategic_updates: New products, M&A activity, market expansion, or changes in business focus.
 risk_factors: New or newly emphasized risks.
 red_flags: Any language that seems unusual, evasive, or overly promotional.
-Be concise. Stick only to what the text explicitly states. Ignore boilerplate.
+
+Critical formatting and cleaning rule: The text you receive may have formatting errors from the PDF extraction (e.g., "50billion", "26%YoY"). You **must** fix these errors. Your output must have perfect, human-readable spacing and punctuation (e.g., "$50 billion", "26% Y/Y"). You are to *correct* the sloppy text, not copy it.
+
 If you find no information for a key, you must return an empty list [].
-
-Critical formatting note: You must ensure there is a space between numbers and words (e.g., "$10 million", not "$10million"). 
-You must also include spaces around punctuation (e.g., "$51.2 billion, up 26%", not "51.2billion,up26").
-
-Example Output (This is the only format you will use):
-{
-  "key_numbers": [
-    "Revenue increased 15% to $10M"
-  ],
-  "strategic_updates": [],
-  "risk_factors": [],
-  "red_flags": []
-}
 """
 
 SYNTHESIZER_AGENT_PROMPT = """
