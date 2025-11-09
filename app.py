@@ -9,7 +9,7 @@ import time
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=GOOGLE_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash-latest') # Using the model that worked
+    model = genai.GenerativeModel('gemini-flash-latest') # Using the model that worked
 except Exception as e:
     st.error("Error configuring Google AI. Check your Streamlit Secrets.")
     model = None
