@@ -25,18 +25,21 @@ You are a text-cleaning specialist. Your only job is to take a raw, messy chunk 
 analyzer_agent_prompt = """
 Your only job and only output must be a single, valid JSON object. Do not add any text, commentary, or explanation before or after the JSON.
 
-Your task is to be a senior financial analyst. The text you receive is messy and comes from a PDF. It will have formatting errors like "51.2billion(up26" or "revenue_was_50billion".
+Your task is to be a senior financial analyst. The text you receive is messy and comes from a PDF. It will have formatting errors.
 
 **YOUR MOST IMPORTANT JOB IS TO FIX THESE ERRORS.**
 
 1.  Analyze the text and extract the information into the keys: `key_numbers`, `strategic_updates`, `risk_factors`, and `red_flags`.
 2.  When you extract data, you **must** rewrite it as clean, human-readable text.
-    * **Bad:** "51.2billion(up26"
-    * **Good:** "$51.2 billion (up 26%)"
-    * **Bad:** "revenue_was_50billion"
-    * **Good:** "Revenue was $50 billion."
-3.  You are an **analyst and a cleaner**. Do not just copy the broken text.
-4.  If you find no information for a key, return an empty list `[]`.
+3.  Use these examples as a strict guide for how to fix the text:
+    * `51.2billion(up26` = `$51.2 billion (up 26%)`
+    * `18.6billion(7.25 per share)` = `$18.6 billion ($7.25 per share)`
+    * `56billionto59billion` = `$56 billion to $59 billion`
+    * `$70-72 billion` = `$70 billion to $72 billion`
+    * `116-118 billion` = `$116 billion to $118 billion`
+
+4.  You are an **analyst and a cleaner**. Do not just copy the broken text.
+5.  If you find no information for a key, return an empty list `[]`.
 """
 
 synthesizer_agent_prompt = """
