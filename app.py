@@ -1,7 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 import pdfplumber
-import json
+import re
 
 
 
@@ -108,6 +108,29 @@ def call_gemini(prompt, data_to_process, retry_count=2):
     st.error("Failed to get a response from the API after multiple attempts.")
     return None
 
+
+
+def clean_text_with_regex(text):
+    """
+    Uses regex to fix the most common, stubborn formatting errors
+    *before* the text is sent to the AI.
+    """
+    
+    # Fix 1: "56billionto59billion" -> "$56 billion to $59 billion"
+    text = re.sub(r'(\d+)billionto(\d+)billion', r'$\1 billion to $\2 billion', text)
+    
+    # Fix 2: "70-72 billion" -> "$70 to $72 billion" (and similar)
+    # This handles "70-72", "116-118", etc.
+    text = re.sub(r'(\$?)(\d+)-(\d+)\s*billion', r'$\2 billion to $\3 billion', text)
+    
+    # Fix 3: "18.6billion(7.25 per share)" -> "$18.6 billion ($7.25 per share)"
+    text = re.sub(r'(\d+\.\d+)billion\(', r'$\1 billion (', text)
+    
+    # Fix 4: "51.2billion(up26" -> "$51.2 billion (up 26%"
+    text = re.sub(r'(\d+\.\d+)billion\(up(\d+)', r'$\1 billion (up \2%)', text)
+    
+    return text
+
 # --- Main Application (The "Factory Floor") ---
 
 def main():
@@ -139,21 +162,20 @@ def main():
                     st.error(f"Error reading PDF: {e}")
                     st.stop()
                 
-                # --- Step 2: Call Agent 1 (Cleaner) ---
-                st.subheader("Step 1: Cleaning Raw Text")
-                clean_text = None
-                with st.expander("See Cleaner Details"):
-                    clean_text = call_gemini(cleaner_agent_prompt, full_text)
-                    if not clean_text:
-                        st.error("Cleaner Agent failed.")
-                        st.stop()
-                    st.text(clean_text) # Show the clean text for debugging
+                # --- Step 2: PRE-CLEAN THE TEXT (NEW) ---
+                st.subheader("Step 1: Pre-Cleaning Text with Code")
+                clean_text = ""
+                with st.expander("See Pre-Cleaning Details"):
+                    clean_text = clean_text_with_regex(full_text)
+                    st.text("Text has been pre-cleaned with regex.")
+                    # You can show a diff here if you want, but this is fine for now
 
                 # --- Step 3: Call Agent 2 (Analyzer) ---
                 st.subheader("Step 2: Analyzing Clean Text")
                 analyzer_json_text = None # Initialize
                 if clean_text: # Only run if cleaning was successful
                     with st.expander("See Analyzer Details"):
+                        # We send the *clean_text* to the AI
                         analyzer_response_text = call_gemini(analyzer_agent_prompt, clean_text)
                         if not analyzer_response_text:
                             st.error("Analyzer Agent failed.")
@@ -179,7 +201,7 @@ def main():
                 # --- Step 5: Display the Final Product ---
                 if final_report_text:
                     st.subheader("Your Executive Summary")
-                    st.markdown(final_report_text)
+                    st.markdown(final_report_text) # Using markdown to display the plain-text
                     st.balloons()
                 else:
                     st.error("Could not generate the final report.")
