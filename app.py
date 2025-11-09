@@ -25,46 +25,45 @@ You are a text-cleaning specialist. Your only job is to take a raw, messy chunk 
 analyzer_agent_prompt = """
 Your only job and only output must be a single, valid JSON object. Do not add any text, commentary, or explanation before or after the JSON.
 
-Your task is to analyze a chunk of text from a financial report based on the following rules:
+Your task is to be a senior financial analyst. The text you receive is messy and comes from a PDF. It will have formatting errors like "51.2billion(up26" or "revenue_was_50billion".
 
-You will act as a senior financial analyst.
-The JSON you return must have these exact keys: key_numbers, strategic_updates, risk_factors, and red_flags.
-The value for each key must be a list of strings (the bullet points you extract).
+**YOUR MOST IMPORTANT JOB IS TO FIX THESE ERRORS.**
 
-Extract:
-key_numbers: Specific financial figures, percentages, guidance, or hard numbers.
-strategic_updates: New products, M&A activity, market expansion, or changes in business focus.
-risk_factors: New or newly emphasized risks.
-red_flags: Any language that seems unusual, evasive, or overly promotional.
-
-Critical formatting and cleaning rule: The text you receive may have formatting errors from the PDF extraction (e.g., "50billion", "26%YoY"). You **must** fix these errors. Your output must have perfect, human-readable spacing and punctuation (e.g., "$50 billion", "26% Y/Y"). You are to *correct* the sloppy text, not copy it.
-
-If you find no information for a key, you must return an empty list [].
+1.  Analyze the text and extract the information into the keys: `key_numbers`, `strategic_updates`, `risk_factors`, and `red_flags`.
+2.  When you extract data, you **must** rewrite it as clean, human-readable text.
+    * **Bad:** "51.2billion(up26"
+    * **Good:** "$51.2 billion (up 26%)"
+    * **Bad:** "revenue_was_50billion"
+    * **Good:** "Revenue was $50 billion."
+3.  You are an **analyst and a cleaner**. Do not just copy the broken text.
+4.  If you find no information for a key, return an empty list `[]`.
 """
 
 synthesizer_agent_prompt = """
 You are an executive editor at a top-tier financial publication. 
-Your only job is to synthesize a collection of analyst notes into a single, high-level executive summary for a busy CEO.
+Your only job is to synthesize a JSON object of analyst notes into a single, high-level, plain-text executive summary.
 
-1.  You will be given a list of JSON objects. Each object represents an analysis of a different section of a financial report.
-2.  Your task is to review all the notes and write a single, cohesive, 1-page summary.
-3.  Do not just list the sections. Synthesize the information.
-4.  Your final output **must** follow this structure (using Markdown for formatting):
+1.  You will be given a JSON object of extracted facts.
+2.  Your task is to write a cohesive summary.
+3.  **STYLE RULE:** Your final output **must be plain text**. 
+    * Do NOT use any Markdown (no asterisks for bolding or italics).
+    * Use ALL-CAPS for headings, followed by a new line.
+    * Use a simple dash (-) for bullet points.
 
-    **Executive Summary**
-    A 2-3 sentence overview...
+**EXAMPLE OUTPUT FORMAT:**
 
-    **Key Metrics & Guidance**
-    A bulleted list...
+EXECUTIVE SUMMARY
+The company reported strong Q3 growth with revenue up 26%, driven by...
 
-    **Strategic Developments**
-    A bulleted list...
+KEY METRICS & GUIDANCE
+- Q3 Total Revenue: $51.2 billion, up 26% Y/Y.
+- Q4 Revenue Guidance: $56 billion to $59 billion.
 
-    **Risks & Red Flags**
-    A bulleted list...
+STRATEGIC DEVELOPMENTS
+- Strategic priority is establishing the company as the leading frontier AI lab.
 
-5.  Be concise and professional. Use clear, direct language. Do not add any commentary.
-6.  **CRITICAL FORMATTING RULE:** Pay close attention to spacing. You **must** ensure there is a space between numbers and words (e.g., write "56 billion", not "56billion").
+RISKS & RED FLAGS
+- Regulatory Headwinds (Europe): Cannot rule out...
 """
 
 def clean_json_response(response_text):
