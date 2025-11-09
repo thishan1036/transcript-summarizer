@@ -13,28 +13,16 @@ except Exception as e:
     st.error(f"Error configuring Google Generative AI: {e}")
     model = None
 
-CHUNK_AGENT_PROMPT = """
-You are a text-processing specialist. Your only job is to parse an earnings call transcript.
-You will be given the full text of an earnings call.
+cleaner_agent_prompt = """
+You are a text-cleaning specialist. Your only job is to take a raw, messy chunk of text from a PDF and rewrite it with perfect, human-readable formatting.
 
-Your task is to identify and segment the text into its two main parts:
-
-The "Prepared Remarks" (the opening speech by management).
-The "Questions and Answers" (the Q&A session with analysts).
-You must return the output as a single JSON object.
-The keys must be prepared_remarks and questions_and_answers.
-The values must be the complete, verbatim text of those sections.
-Do not include any other sections (like the operator introduction or legal disclaimers).
-Do not add any commentary. Your only output must be the valid JSON.
-
-Example Output Format:
-{
-  "prepared_remarks": "Thank you, operator. Good afternoon, everyone... [full text]...",
-  "questions_and_answers": "Thank you. We will now begin the question-and-answer session... [full text]..."
-}
+1.  The text you receive will have formatting errors (e.g., "50billion", "26%YoY", "51.2billion(up26").
+2.  Your task is to fix all of them. Add correct spacing between words, numbers, and punctuation.
+3.  You must not change any words or numbers. You*must not summarize or analyze.
+4.  Your only output is the perfectly clean, rewritten text. Do not add any commentary.
 """
 
-ANALYZER_AGENT_PROMPT = """
+analyzer_agent_prompt = """
 Your only job and only output must be a single, valid JSON object. Do not add any text, commentary, or explanation before or after the JSON.
 
 Your task is to analyze a chunk of text from a financial report based on the following rules:
@@ -54,7 +42,7 @@ Critical formatting and cleaning rule: The text you receive may have formatting 
 If you find no information for a key, you must return an empty list [].
 """
 
-SYNTHESIZER_AGENT_PROMPT = """
+synthesizer_agent_prompt = """
 You are an executive editor at a top-tier financial publication. 
 Your only job is to synthesize a collection of analyst notes into a single, high-level executive summary for a busy CEO.
 
@@ -114,12 +102,13 @@ def call_gemini(prompt, data_to_process, retry_count=2):
     return None
 
 # --- Main Application (The "Factory Floor") ---
+
 def main():
     """
     The main function to run the Streamlit app.
     """
     st.set_page_config(layout="wide")
-    st.title("🤖 AI Earnings Call Summarizer")
+    st.title("Earnings Call Summarizer")
 
     uploaded_file = st.file_uploader("Upload an Earnings Call Transcript (PDF)", type=["pdf"])
 
@@ -133,6 +122,7 @@ def main():
             with st.spinner("Processing... This may take 1-2 minutes."):
                 
                 # --- Step 1: Read the PDF ---
+                full_text = ""
                 try:
                     with pdfplumber.open(uploaded_file) as pdf:
                         # Ensure text is extracted and joined with a space
@@ -142,33 +132,44 @@ def main():
                     st.error(f"Error reading PDF: {e}")
                     st.stop()
                 
-                # --- Step 2: Call Agent 2 (Analyzer) ---
-                st.subheader("Step 1: Analyzing Full Transcript")
-                analyzer_json_text = None # Initialize
-                with st.expander("See Analyzer Details"):
-                    analyzer_response_text = call_gemini(ANALYZER_AGENT_PROMPT, full_text)
-                    if not analyzer_response_text:
-                        st.error("Analyzer Agent failed.")
+                # --- Step 2: Call Agent 1 (Cleaner) ---
+                st.subheader("Step 1: Cleaning Raw Text")
+                clean_text = None
+                with st.expander("See Cleaner Details"):
+                    clean_text = call_gemini(cleaner_agent_prompt, full_text)
+                    if not clean_text:
+                        st.error("Cleaner Agent failed.")
                         st.stop()
-                    
-                    # Clean the response to get pure JSON
-                    analyzer_json_text = clean_json_response(analyzer_response_text)
-                    st.json(analyzer_json_text) # Show the raw JSON for debugging
+                    st.text(clean_text) # Show the clean text for debugging
 
-                # --- Step 3: Call Agent 3 (Synthesizer) ---
-                st.subheader("Step 2: Synthesizing Final Report")
+                # --- Step 3: Call Agent 2 (Analyzer) ---
+                st.subheader("Step 2: Analyzing Clean Text")
+                analyzer_json_text = None # Initialize
+                if clean_text: # Only run if cleaning was successful
+                    with st.expander("See Analyzer Details"):
+                        analyzer_response_text = call_gemini(analyzer_agent_prompt, clean_text)
+                        if not analyzer_response_text:
+                            st.error("Analyzer Agent failed.")
+                            st.stop()
+                        
+                        # Clean the response to get pure JSON
+                        analyzer_json_text = clean_json_response(analyzer_response_text)
+                        st.json(analyzer_json_text) # Show the raw JSON for debugging
+
+                # --- Step 4: Call Agent 3 (Synthesizer) ---
+                st.subheader("Step 3: Synthesizing Final Report")
                 final_report_text = None # Initialize
                 if analyzer_json_text: # Only run if analyzer was successful
                     with st.expander("See Synthesizer Details"):
                         # Pass the ANALYZER's JSON output to the Synthesizer
-                        final_report_text = call_gemini(SYNTHESIZER_AGENT_PROMPT, analyzer_json_text)
+                        final_report_text = call_gemini(synthesizer_agent_prompt, analyzer_json_text)
                         if not final_report_text:
                             st.error("Synthesizer Agent failed.")
                             st.stop()
                         
                         st.text("Synthesizer received the JSON and produced this report:")
 
-                # --- Step 4: Display the Final Product ---
+                # --- Step 5: Display the Final Product ---
                 if final_report_text:
                     st.subheader("Your Executive Summary")
                     st.markdown(final_report_text)
