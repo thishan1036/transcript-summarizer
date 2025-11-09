@@ -51,6 +51,9 @@ red_flags: Any language that seems unusual, evasive, or overly promotional.
 Be concise. Stick only to what the text explicitly states. Ignore boilerplate.
 If you find no information for a key, you must return an empty list [].
 
+Critical formatting note: You must ensure there is a space between numbers and words (e.g., "$10 million", not "$10million"). 
+You must also include spaces around punctuation (e.g., "$51.2 billion, up 26%", not "51.2billion,up26").
+
 Example Output (This is the only format you will use):
 {
   "key_numbers": [
@@ -63,34 +66,28 @@ Example Output (This is the only format you will use):
 """
 
 SYNTHESIZER_AGENT_PROMPT = """
-You are an executive editor. Your *only* job is to synthesize a JSON object of analyst notes into a *new, final JSON object* that will be used to build a report.
+You are an executive editor at a top-tier financial publication. 
+Your only job is to synthesize a collection of analyst notes into a single, high-level executive summary for a busy CEO.
 
-1.  You will be given a JSON object of extracted facts.
-2.  Your task is to review all the notes and synthesize the information.
-3.  You **must** return a single, valid JSON object with the following keys:
-    * `executive_summary`: A 2-3 sentence overview.
-    * `key_metrics`: A list of strings (bullets) for the most critical numbers.
-    * `strategic_developments`: A list of strings (bullets) for key updates.
-    * `risks_and_red_flags`: A list of strings (bullets) for significant risks.
-4.  **CRITICAL:** When you write the text for the lists, ensure all spacing is correct (e.g., "$56 billion to $59 billion", not "$56billionto").
-5.  Do not add any commentary. Your *only* output is the final JSON.
+1.  You will be given a list of JSON objects. Each object represents an analysis of a different section of a financial report.
+2.  Your task is to review all the notes and write a single, cohesive, 1-page summary.
+3.  Do not just list the sections. Synthesize the information.
+4.  Your final output **must** follow this structure (using Markdown for formatting):
 
-**Example Output Format:**
-```json
-{
-  "executive_summary": "The company reported strong Q3 growth with revenue up 26%, driven by...",
-  "key_metrics": [
-    "Q3 Total Revenue: $51.2 billion, up 26% Y/Y.",
-    "Q4 Revenue Guidance: $56 billion to $59 billion."
-  ],
-  "strategic_developments": [
-    "Strategic priority is establishing the company as the leading frontier AI lab."
-  ],
-  "risks_and_red_flags": [
-    "Regulatory Headwinds (Europe): Cannot rule out...",
-    "Legal Exposure: Youth-related trials..."
-  ]
-}
+    **Executive Summary**
+    A 2-3 sentence overview...
+
+    **Key Metrics & Guidance**
+    A bulleted list...
+
+    **Strategic Developments**
+    A bulleted list...
+
+    **Risks & Red Flags**
+    A bulleted list...
+
+5.  Be concise and professional. Use clear, direct language. Do not add any commentary.
+6.  **CRITICAL FORMATTING RULE:** Pay close attention to spacing. You **must** ensure there is a space between numbers and words (e.g., write "56 billion", not "56billion").
 """
 
 def clean_json_response(response_text):
@@ -127,55 +124,13 @@ def call_gemini(prompt, data_to_process, retry_count=2):
     st.error("Failed to get a response from the API after multiple attempts.")
     return None
 
-def build_report_from_json(report_json_text):
-    """
-    Takes the final JSON from the synthesizer and builds the clean,
-    human-readable markdown report.
-    """
-    try:
-        data = json.loads(report_json_text)
-    except json.JSONDecodeError:
-        st.error("Error: Unable to parse final report JSON.")
-        return report_json_text
-    
-    report_markdown = []
-
-    if "executive_summary" in data:
-        report_markdown.append("### Executive Summary")
-        report_markdown.append(data["executive_summary"])
-        report_markdown.append("\n")
-
-    if "key_metrics" in data:
-        report_markdown.append("**Key Metrics & Guidance**")
-        for item in data.get("key_metrics", []):
-            report_markdown.append(f"*{item}*")
-        report_markdown.append("\n")
-
-    if "strategic_developments" in data:
-        report_markdown.append("**Strategic Developments**")
-        for item in data.get("strategic_developments", []):
-            report_markdown.append(f"*{item}*")
-        report_markdown.append("\n")
-
-    if "risks_and_red_flags" in data:
-        report_markdown.append("**Risks & Red Flags**")
-        for item in data.get("risks_and_red_flags", []):
-            report_markdown.append(f"*{item}*")
-        report_markdown.append("\n")
-    
-    return "\n".join(report_markdown)
-
-
-
-
 # --- Main Application (The "Factory Floor") ---
-
 def main():
     """
     The main function to run the Streamlit app.
     """
     st.set_page_config(layout="wide")
-    st.title("Earnings Call Summarizer")
+    st.title("🤖 AI Earnings Call Summarizer")
 
     uploaded_file = st.file_uploader("Upload an Earnings Call Transcript (PDF)", type=["pdf"])
 
@@ -197,7 +152,7 @@ def main():
                 except Exception as e:
                     st.error(f"Error reading PDF: {e}")
                     st.stop()
-
+                
                 # --- Step 2: Call Agent 2 (Analyzer) ---
                 st.subheader("Step 1: Analyzing Full Transcript")
                 analyzer_json_text = None # Initialize
@@ -212,33 +167,22 @@ def main():
                     st.json(analyzer_json_text) # Show the raw JSON for debugging
 
                 # --- Step 3: Call Agent 3 (Synthesizer) ---
-                st.subheader("Step 2: Synthesizing Final JSON")
-                final_json_text = None # Initialize
+                st.subheader("Step 2: Synthesizing Final Report")
+                final_report_text = None # Initialize
                 if analyzer_json_text: # Only run if analyzer was successful
                     with st.expander("See Synthesizer Details"):
                         # Pass the ANALYZER's JSON output to the Synthesizer
-                        synthesizer_response = call_gemini(SYNTHESIZER_AGENT_PROMPT, analyzer_json_text)
-                        if not synthesizer_response:
+                        final_report_text = call_gemini(SYNTHESIZER_AGENT_PROMPT, analyzer_json_text)
+                        if not final_report_text:
                             st.error("Synthesizer Agent failed.")
                             st.stop()
                         
-                        # Clean the response to get pure JSON
-                        final_json_text = clean_json_response(synthesizer_response)
-                        st.json(final_json_text) # Show the raw JSON for debugging
+                        st.text("Synthesizer received the JSON and produced this report:")
 
-                # --- Step 4: Build the Final Report (NEW STEP) ---
-                st.subheader("Step 3: Building Final Report")
-                final_report_markdown = None
-                if final_json_text:
-                    with st.expander("See Final Report Markdown"):
-                        # Use our new function to build the report
-                        final_report_markdown = build_report_from_json(final_json_text)
-                        st.text(final_report_markdown)
-                
-                # --- Step 5: Display the Final Product ---
-                if final_report_markdown:
+                # --- Step 4: Display the Final Product ---
+                if final_report_text:
                     st.subheader("Your Executive Summary")
-                    st.markdown(final_report_markdown)
+                    st.markdown(final_report_text)
                     st.balloons()
                 else:
                     st.error("Could not generate the final report.")
