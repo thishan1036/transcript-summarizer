@@ -118,7 +118,7 @@ def main():
     The main function to run the Streamlit app.
     """
     st.set_page_config(layout="wide")
-    st.title("🤖 AI Earnings Call Summarizer")
+    st.title("Earnings Call Summarizer")
 
     uploaded_file = st.file_uploader("Upload an Earnings Call Transcript (PDF)", type=["pdf"])
 
@@ -179,7 +179,7 @@ def main():
 
                 # --- Step 5: Display the Final Product ---
                 if final_report_text:
-                    st.subheader("🎉 Your Executive Summary")
+                    st.subheader("Your Executive Summary")
                     # Use st.text to display plain text perfectly
                     st.text(final_report_text)
                     st.balloons()
