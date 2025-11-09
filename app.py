@@ -202,7 +202,7 @@ def main():
                 st.subheader("Step 1: Analyzing Full Transcript")
                 analyzer_json_text = None # Initialize
                 with st.expander("See Analyzer Details"):
-                    analyzer_response_text = call_gemini(analyzer_agent_prompt, full_text)
+                    analyzer_response_text = call_gemini(ANALYZER_AGENT_PROMPT, full_text)
                     if not analyzer_response_text:
                         st.error("Analyzer Agent failed.")
                         st.stop()
@@ -217,7 +217,7 @@ def main():
                 if analyzer_json_text: # Only run if analyzer was successful
                     with st.expander("See Synthesizer Details"):
                         # Pass the ANALYZER's JSON output to the Synthesizer
-                        synthesizer_response = call_gemini(synthesizer_agent_prompt, analyzer_json_text)
+                        synthesizer_response = call_gemini(SYNTHESIZER_AGENT_PROMPT, analyzer_json_text)
                         if not synthesizer_response:
                             st.error("Synthesizer Agent failed.")
                             st.stop()
